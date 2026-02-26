@@ -8,9 +8,7 @@ class User(BaseModel):
     email: Optional[str]
 
 
-class UserCreate(BaseModel):
-    full_name: str
-    email: Optional[str]
+class UserCreate(User):
     password: str
 
 

@@ -14,3 +14,7 @@ wheels/
 .env.production
 
 Makefile
+
+# Storing folder
+
+rag_files/

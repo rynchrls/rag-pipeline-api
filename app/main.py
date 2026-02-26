@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.tables import create_tables
 from app.v1.routers import user
+from app.v1.routers import pipeline
 
 create_tables()
 
@@ -31,3 +32,4 @@ def read_root():
 
 # ✅ Register API routes
 app.include_router(user.router, prefix="/api/v1/users", tags=["Users"])
+app.include_router(pipeline.router, prefix="/api/v1/pipelines", tags=["Pipelines"])
