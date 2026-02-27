@@ -18,3 +18,14 @@ class PipelineService:
         db: Session = Depends(db_session),
     ):
         return self.repository.create_pipeline(payload, files, db)
+
+    def get_pipeline(self, id: int, author_id: int, db: Session = Depends(db_session)):
+        return self.repository.get_pipeline(id, author_id, db)
+
+    def update_pipeline(
+        self,
+        payload: CreatePipeline,
+        files: List[UploadFile],
+        db: Session = Depends(db_session),
+    ):
+        return self.repository.update_pipeline(payload, files, db)
