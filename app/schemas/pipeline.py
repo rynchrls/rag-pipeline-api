@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from fastapi import Form
+import json
 
 
 class Pipeline(BaseModel):
@@ -16,6 +17,7 @@ class CreatePipeline(Pipeline):
     file_names: list[str]
     file_count: int
     stage: int
+    rp_metadata: Optional[dict[str, Any]] = None
 
     @classmethod
     def as_form(
@@ -29,12 +31,20 @@ class CreatePipeline(Pipeline):
         file_names: list[str] = Form(...),
         file_count: int = Form(...),
         stage: int = Form(...),
+        rp_metadata: Optional[str] = Form(None),
     ):
         # Form data may send list as a single comma-separated string
         # e.g. ["akali.md,ashe.md"] -> ["akali.md", "ashe.md"]
         parsed_file_names = []
         for name in file_names:
             parsed_file_names.extend(name.split(","))
+        parsed_rp_metadata = None
+        if rp_metadata:
+            try:
+                parsed_rp_metadata = json.loads(rp_metadata)
+            except json.JSONDecodeError:
+                # Handle or log error if needed, for now we set it as is or empty
+                parsed_rp_metadata = {}
 
         return cls(
             id=id,
@@ -46,6 +56,7 @@ class CreatePipeline(Pipeline):
             file_names=parsed_file_names,
             file_count=file_count,
             stage=stage,
+            rp_metadata=parsed_rp_metadata,
         )
 
 
