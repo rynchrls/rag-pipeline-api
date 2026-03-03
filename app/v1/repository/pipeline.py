@@ -8,10 +8,15 @@ from fastapi import UploadFile
 from fastapi import HTTPException, status
 from pathlib import Path
 from app.utils.file_handling import HandleFile
+from app.rag.load_documents.load import LoadDocuments
+from app.rag.chunking.service import ChunkingService
+from app.rag.vector_database.vector_db import VectorDatabase
 
 
 class PipelineRepository:
     file = HandleFile()
+    load_doc = LoadDocuments()
+    vector_db = VectorDatabase()
 
     def create_pipeline(
         self,
@@ -96,6 +101,21 @@ class PipelineRepository:
             # ✅ Attach dynamically (not from DB)
             pipeline.files = files
 
+            collection_path = agent_folder / "chroma_db"
+            collection = self.vector_db.get_collection(collection_path)
+            data = collection.get()
+            chunks = []
+            for i in range(len(data["ids"])):
+                chunks.append(
+                    {
+                        "chunk_id": data["ids"][i],
+                        "document_id": data["metadatas"][i].get("document_id"),
+                        "title": data["metadatas"][i].get("title"),
+                        "content": data["documents"][i],
+                    }
+                )
+            pipeline.chunks = chunks
+
             return pipeline
 
         except Exception as e:
@@ -156,4 +176,51 @@ class PipelineRepository:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Updating Pipeline Failed! {str(e)}",
+            )
+
+    def chunking_pipeline(
+        self,
+        payload: CreatePipeline,
+        files: List[UploadFile],
+        db: Session = Depends(db_session),
+    ):
+        try:
+            pipeline = self.update_pipeline(payload=payload, files=files, db=db)
+            if not pipeline:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Pipeline not found",
+                )
+
+            documents = self.load_doc.load_documents(
+                folder_path=f"./app/rag_files/rag_{payload.email}/{payload.agent_name}"
+            )
+
+            metadata = payload.rp_metadata or {}
+            strategy = metadata.get("strategy", "sentence")
+            chunk_size = metadata.get("size", 500)
+            chunk_overlap = metadata.get("overlap", 50)
+
+            chunker = ChunkingService(
+                strategy=strategy,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
+
+            chunks = chunker.chunk_documents(documents)
+
+            self.vector_db.setup_vector_database(
+                chunks=chunks,
+                collection_path=f"./app/rag_files/rag_{payload.email}/{payload.agent_name}/chroma_db",
+            )
+
+            return {
+                "message": "Pipeline chunked successfully",
+                "data": pipeline["data"],
+                "chunks": chunks,
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Chunking Pipeline Failed! {str(e)}",
             )

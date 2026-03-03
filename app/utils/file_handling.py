@@ -19,21 +19,22 @@ class HandleFile:
 
         if agent_folder.exists() and agent_folder.is_dir():
             for file in agent_folder.iterdir():
-                if file.is_file():
+                if (
+                    file.is_file() and file.suffix.lower() == ".md"
+                ):  # only markdown files
                     stat = file.stat()
 
-                last_modified_ts = int(
-                    stat.st_mtime * 1000
-                )  # JS timestamp (milliseconds)
+                    last_modified_ts = int(stat.st_mtime * 1000)  # JS timestamp (ms)
 
-                file_details.append(
-                    {
-                        "name": file.name,
-                        "size": stat.st_size,
-                        "lastModified": last_modified_ts,
-                        "lastModifiedDate": datetime.fromtimestamp(
-                            stat.st_mtime
-                        ).isoformat(),
-                    }
-                )
+                    file_details.append(
+                        {
+                            "name": file.name,
+                            "size": stat.st_size,
+                            "lastModified": last_modified_ts,
+                            "lastModifiedDate": datetime.fromtimestamp(
+                                stat.st_mtime
+                            ).isoformat(),
+                        }
+                    )
+
         return file_details

@@ -28,4 +28,4 @@ class PipelineService:
         files: List[UploadFile],
         db: Session = Depends(db_session),
     ):
-        return self.repository.update_pipeline(payload, files, db)
+        return self.repository.chunking_pipeline(payload, files, db)
