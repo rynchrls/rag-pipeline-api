@@ -18,6 +18,7 @@ class CreatePipeline(Pipeline):
     file_count: int
     stage: int
     rp_metadata: Optional[dict[str, Any]] = None
+    chunks_count: Optional[int] = None
 
     @classmethod
     def as_form(
@@ -32,6 +33,7 @@ class CreatePipeline(Pipeline):
         file_count: int = Form(...),
         stage: int = Form(...),
         rp_metadata: Optional[str] = Form(None),
+        chunks_count: Optional[int] = Form(None),
     ):
         # Form data may send list as a single comma-separated string
         # e.g. ["akali.md,ashe.md"] -> ["akali.md", "ashe.md"]
@@ -57,9 +59,17 @@ class CreatePipeline(Pipeline):
             file_count=file_count,
             stage=stage,
             rp_metadata=parsed_rp_metadata,
+            chunks_count=chunks_count,
         )
 
 
 class GetPipeline(Pipeline):
     id: int
     author_id: int
+
+
+class GetAllPipelines(BaseModel):
+    author_id: int
+    page: int
+    limit: int
+    search: Optional[str] = None

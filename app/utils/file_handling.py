@@ -38,3 +38,9 @@ class HandleFile:
                     )
 
         return file_details
+
+    def delete_files(self, agent_folder: str, agent_name: str, email: str):
+        if agent_folder.exists() and agent_folder.is_dir():
+            for file in agent_folder.iterdir():
+                if file.is_file():
+                    file.unlink()

@@ -73,5 +73,14 @@ class VectorDatabase:
         """
         persist_path = Path(collection_path)
         client = chromadb.PersistentClient(path=str(persist_path))
-        collection = client.get_collection("rag_docs")
+        # Create or get collection
+        try:
+            collection = client.create_collection(
+                name="rag_docs",
+                metadata={"hnsw:space": "cosine"},
+            )
+            print("🆕 Created new collection")
+        except Exception:
+            collection = client.get_collection("rag_docs")
+            print("♻️ Using existing collection")
         return collection

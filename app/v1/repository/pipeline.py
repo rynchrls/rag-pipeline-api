@@ -1,13 +1,14 @@
 from app.db.session import db_session
 from sqlalchemy.orm import Session
 from fastapi import Depends
-from app.schemas.pipeline import CreatePipeline
+from app.schemas.pipeline import CreatePipeline, GetAllPipelines
 from app.models.pipeline import Pipeline
 from typing import List
 from fastapi import UploadFile
 from fastapi import HTTPException, status
 from pathlib import Path
 from app.utils.file_handling import HandleFile
+from app.utils.pagination import paginate
 from app.rag.load_documents.load import LoadDocuments
 from app.rag.chunking.service import ChunkingService
 from app.rag.vector_database.vector_db import VectorDatabase
@@ -104,17 +105,18 @@ class PipelineRepository:
             collection_path = agent_folder / "chroma_db"
             collection = self.vector_db.get_collection(collection_path)
             data = collection.get()
-            chunks = []
-            for i in range(len(data["ids"])):
-                chunks.append(
-                    {
-                        "chunk_id": data["ids"][i],
-                        "document_id": data["metadatas"][i].get("document_id"),
-                        "title": data["metadatas"][i].get("title"),
-                        "content": data["documents"][i],
-                    }
-                )
-            pipeline.chunks = chunks
+            if collection:
+                chunks = []
+                for i in range(len(data["ids"])):
+                    chunks.append(
+                        {
+                            "chunk_id": data["ids"][i],
+                            "document_id": data["metadatas"][i].get("document_id"),
+                            "title": data["metadatas"][i].get("title"),
+                            "content": data["documents"][i],
+                        }
+                    )
+                pipeline.chunks = chunks
 
             return pipeline
 
@@ -185,13 +187,6 @@ class PipelineRepository:
         db: Session = Depends(db_session),
     ):
         try:
-            pipeline = self.update_pipeline(payload=payload, files=files, db=db)
-            if not pipeline:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Pipeline not found",
-                )
-
             documents = self.load_doc.load_documents(
                 folder_path=f"./app/rag_files/rag_{payload.email}/{payload.agent_name}"
             )
@@ -214,6 +209,14 @@ class PipelineRepository:
                 collection_path=f"./app/rag_files/rag_{payload.email}/{payload.agent_name}/chroma_db",
             )
 
+            payload.chunks_count = len(chunks)
+            pipeline = self.update_pipeline(payload=payload, files=files, db=db)
+            if not pipeline:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Pipeline not found",
+                )
+
             return {
                 "message": "Pipeline chunked successfully",
                 "data": pipeline["data"],
@@ -224,3 +227,140 @@ class PipelineRepository:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Chunking Pipeline Failed! {str(e)}",
             )
+
+    def get_all_pipelines(
+        self, payload: GetAllPipelines, db: Session = Depends(db_session)
+    ):
+        try:
+            search = payload.search
+            page = max(payload.page, 1) - 1
+            limit = min(payload.limit, 100)  # prevent abuse
+            author_id = payload.author_id
+
+            query = db.query(Pipeline)
+
+            if author_id:
+                query = query.filter(Pipeline.author_id == author_id)
+
+            if search:
+                query = query.filter(Pipeline.title.ilike(f"%{search.strip()}%"))
+
+            total = query.count()
+
+            pipelines = (
+                query.order_by(Pipeline.created_at.desc())
+                .offset(page * limit)
+                .limit(limit)
+                .all()
+            )
+
+            pagination = paginate(total, page, limit, len(pipelines))
+
+            return {
+                "message": "Pipelines fetched successfully",
+                "data": pipelines,
+                "pagination": pagination,
+            }
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Getting All Pipelines Failed! {str(e)}",
+            )
+
+    def delete_pipeline(
+        self,
+        id: int,
+        author_id: int,
+        agent_name: str,
+        email: str,
+        db: Session = Depends(db_session),
+    ):
+        try:
+            pipeline = (
+                db.query(Pipeline)
+                .filter(Pipeline.id == id, Pipeline.author_id == author_id)
+                .first()
+            )
+
+            if not pipeline:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Pipeline not found",
+                )
+
+            db.delete(pipeline)
+            db.commit()
+
+            # ✅ Build folder path
+            base_path = Path("app/rag_files")
+            agent_folder = base_path / f"rag_{email}" / agent_name
+
+            self.file.delete_files(agent_folder, agent_name, email)
+
+            return {"message": "Pipeline deleted successfully"}
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Deleting Pipeline Failed! {str(e)}",
+            )
+
+    # def get_all_pipelines(
+    #     self, payload: GetAllPipelines, db: Session = Depends(db_session)
+    # ):
+    #     try:
+    #         search = (payload.search or "").strip()
+    #         page = max(payload.page or 1, 1)
+    #         limit = min(payload.limit or 10, 100)
+    #         author_id = payload.author_id
+
+    #         query = db.query(Pipeline)
+
+    #         # =========================
+    #         # Author Filter
+    #         # =========================
+    #         if author_id:
+    #             query = query.filter(Pipeline.author_id == author_id)
+
+    #         # =========================
+    #         # Full-Text Search
+    #         # =========================
+    #         if search:
+    #             search_vector = func.to_tsvector(
+    #                 "english",
+    #                 func.coalesce(Pipeline.title, "")
+    #                 + " "
+    #                 + func.coalesce(Pipeline.description, ""),
+    #             )
+
+    #             search_query = func.plainto_tsquery("english", search)
+
+    #             query = query.filter(search_vector.op("@@")(search_query)).order_by(
+    #                 desc(func.ts_rank(search_vector, search_query))
+    #             )
+    #         else:
+    #             query = query.order_by(Pipeline.created_at.desc())
+
+    #         # =========================
+    #         # Total Count
+    #         # =========================
+    #         total = query.count()
+
+    #         # =========================
+    #         # Pagination
+    #         # =========================
+    #         pipelines = query.offset((page - 1) * limit).limit(limit).all()
+
+    #         pagination = paginate(total, page, limit, len(pipelines))
+
+    #         return {
+    #             "message": "Pipelines fetched successfully",
+    #             "data": pipelines,
+    #             "pagination": pagination,
+    #         }
+
+    #     except Exception as e:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail=f"Getting All Pipelines Failed! {str(e)}",
+    #         )

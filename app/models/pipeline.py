@@ -14,5 +14,6 @@ class Pipeline(Base):
     file_count = Column(Integer)
     email = Column(String)
     rp_metadata = Column(JSON)
+    chunks_count = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
