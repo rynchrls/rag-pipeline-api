@@ -1,11 +1,11 @@
 from passlib.context import CryptContext
 
-pwd_cxt = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 class Hash:
     def bcrypt(self, password: str) -> str:
-        hashedPassword = pwd_cxt.hash(password)
+        hashedPassword = pwd_context.hash(password)
         return hashedPassword
 
     def verify(
@@ -13,4 +13,4 @@ class Hash:
         password: str,
         hashedPass: str,
     ) -> bool:
-        return pwd_cxt.verify(password, hashedPass)
+        return pwd_context.verify(password, hashedPass)
