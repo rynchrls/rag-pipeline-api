@@ -1,12 +1,20 @@
 from pydantic import BaseModel
-from datetime import datetime
+from typing import Optional
 
 
-class Message(BaseModel):
-    id: str
+class CreateMessage(BaseModel):
+    id: Optional[int] = None
     role: str
     content: str
-    pipeline_id: str
-    user_id: str
-    createdAt: datetime
-    updatedAt: datetime
+    pipeline_id: int
+    author_id: int
+    agent_name: str
+    conversation_id: int
+
+
+class GetAllMessages(BaseModel):
+    pipeline_id: int
+    author_id: int
+    conversation_id: int
+    page: int
+    limit: int

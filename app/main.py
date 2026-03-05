@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.tables import create_tables
 from app.v1.routers import user
 from app.v1.routers import pipeline
+from app.v1.routers import message
+from app.v1.routers import conversation
+from app.socketio_app import socket_app
+import app.v1.socket.socket_handlers
 
 create_tables()
 
@@ -33,3 +37,11 @@ def read_root():
 # ✅ Register API routes
 app.include_router(user.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(pipeline.router, prefix="/api/v1/pipelines", tags=["Pipelines"])
+app.include_router(message.router, prefix="/api/v1/messages", tags=["Messages"])
+app.include_router(
+    conversation.router, prefix="/api/v1/conversations", tags=["Conversations"]
+)
+
+# ✅ Mount socket.io — only /socket.io/* traffic goes to socket_app
+# socketio_path="" means engineio handles paths relative to this mount point
+app.mount("/", socket_app)

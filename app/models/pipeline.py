@@ -8,7 +8,7 @@ class Pipeline(Base):
     title = Column(String, index=True)
     agent_name = Column(String, index=True)
     description = Column(String)
-    author_id = Column(Integer, ForeignKey("users.id"))
+    author_id = Column(Integer, ForeignKey("users.id"), index=True)
     stage = Column(Integer)
     file_names = Column(ARRAY(String))
     file_count = Column(Integer)
