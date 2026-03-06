@@ -21,3 +21,8 @@ class GetConversation(BaseModel):
     author_id: int
     page: int = 1
     limit: int = 10
+
+
+class DeleteConversation(BaseModel):
+    conversation_id: int
+    author_id: int

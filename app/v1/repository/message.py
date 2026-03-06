@@ -12,6 +12,8 @@ from app.rag.generate.generate import GenerateResponse
 from app.rag.vector_database.vector_db import VectorDatabase
 from pathlib import Path
 from app.utils.pagination import paginate
+from fastapi.responses import StreamingResponse
+import json
 
 
 class MessageRepository:
@@ -88,24 +90,73 @@ class MessageRepository:
             )
 
             # ── 7. Generate response ──────────────────────────────────
-            response = self.generate.generate(
-                instruction_prompt=instruction_prompt,
-                context=context,
-                query=payload.content,
-            )
-            data = {
-                "role": "system",
-                "content": response,
-                "pipeline_id": payload.pipeline_id,
-                "author_id": payload.author_id,
-                "agent_name": payload.agent_name,
-                "conversation_id": payload.conversation_id,
-            }
-            db.add(new_message)
-            db.commit()
-            db.refresh(new_message)
+            def generate_stream():
+                full_response = ""
+                provider = "ollama"
 
-            return {"message": "Message created successfully", "data": data}
+                yield (
+                    json.dumps(
+                        {
+                            "type": "start",
+                            "message": "Message created successfully",
+                            "data": {
+                                "role": "system",
+                                "content": "",
+                                "pipeline_id": payload.pipeline_id,
+                                "author_id": payload.author_id,
+                                "agent_name": payload.agent_name,
+                                "conversation_id": payload.conversation_id,
+                            },
+                        }
+                    )
+                    + "\n"
+                )
+
+                response = self.generate.generate(
+                    provider=provider,
+                    instruction_prompt=instruction_prompt,
+                    context=context,
+                    query=payload.content,
+                    prev_messages=payload.messages,
+                )
+
+                for content in self.generate.stream_text(provider, response):
+                    if content:
+                        full_response += content
+                        yield (
+                            json.dumps(
+                                {
+                                    "type": "chunk",
+                                    "content": content,
+                                }
+                            )
+                            + "\n"
+                        )
+
+                data = {
+                    "role": "system",
+                    "content": full_response,
+                    "pipeline_id": payload.pipeline_id,
+                    "author_id": payload.author_id,
+                    "agent_name": payload.agent_name,
+                    "conversation_id": payload.conversation_id,
+                }
+
+                yield (
+                    json.dumps(
+                        {
+                            "type": "done",
+                            "message": "Message created successfully",
+                            "data": data,
+                        }
+                    )
+                    + "\n"
+                )
+
+            return StreamingResponse(
+                generate_stream(),
+                media_type="application/x-ndjson",
+            )
 
         except Exception as e:
             db.rollback()

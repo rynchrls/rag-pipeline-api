@@ -16,6 +16,9 @@ class ConversationRouter:
         self.router.get("/all", status_code=200)(
             self.conversation_controller.get_all_conversations
         )
+        self.router.delete("/{conversation_id}", status_code=200)(
+            self.conversation_controller.delete_conversation
+        )
 
 
 router = ConversationRouter().router

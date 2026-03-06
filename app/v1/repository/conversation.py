@@ -5,6 +5,7 @@ from app.schemas.conversation import (
     CreateConversation,
     GetAllConversations,
     GetConversation,
+    DeleteConversation,
 )
 from app.models.conversation import Conversation
 from app.models.message import Message
@@ -49,7 +50,7 @@ class ConversationRepository:
             total = query.count()
 
             conversations = (
-                query.order_by(Conversation.createdAt.asc())
+                query.order_by(Conversation.createdAt.desc())
                 .offset(page * limit)
                 .limit(limit)
                 .all()
@@ -84,7 +85,7 @@ class ConversationRepository:
             total = query.count()
 
             messages = (
-                query.order_by(Message.createdAt.asc())
+                query.order_by(Message.createdAt.desc())
                 .offset(page * limit)
                 .limit(limit)
                 .all()
@@ -102,4 +103,42 @@ class ConversationRepository:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Getting Conversation Failed! {str(e)}",
+            )
+
+    def delete_conversation(
+        self, payload: DeleteConversation, db: Session = Depends(db_session)
+    ):
+        try:
+            conversation = (
+                db.query(Conversation)
+                .filter(
+                    Conversation.id == payload.conversation_id,
+                    Conversation.author_id == payload.author_id,
+                )
+                .first()
+            )
+
+            if not conversation:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Conversation not found",
+                )
+
+            # Cascade delete all messages in the conversation
+            db.query(Message).filter(
+                Message.conversation_id == payload.conversation_id
+            ).delete(synchronize_session=False)
+
+            db.delete(conversation)
+            db.commit()
+
+            return {"message": "Conversation deleted successfully"}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Deleting Conversation Failed! {str(e)}",
             )

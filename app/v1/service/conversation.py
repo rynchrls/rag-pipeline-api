@@ -6,6 +6,7 @@ from app.schemas.conversation import (
     CreateConversation,
     GetAllConversations,
     GetConversation,
+    DeleteConversation,
 )
 
 
@@ -27,3 +28,8 @@ class ConversationService:
         self, payload: GetConversation, db: Session = Depends(db_session)
     ):
         return self.repository.get_conversation(payload, db)
+
+    def delete_conversation(
+        self, payload: DeleteConversation, db: Session = Depends(db_session)
+    ):
+        return self.repository.delete_conversation(payload, db)

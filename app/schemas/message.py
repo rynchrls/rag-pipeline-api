@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 
 class CreateMessage(BaseModel):
@@ -10,6 +10,7 @@ class CreateMessage(BaseModel):
     author_id: int
     agent_name: str
     conversation_id: int
+    messages: Optional[list[dict[str, Any]]] = None
 
 
 class GetAllMessages(BaseModel):

@@ -239,8 +239,13 @@ class PipelineRepository:
 
             query = db.query(Pipeline)
 
-            if author_id:
-                query = query.filter(Pipeline.author_id == author_id)
+            if author_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Failed to fetch pipelines! Author ID is required.",
+                )
+
+            query = query.filter(Pipeline.author_id == author_id, Pipeline.is_active)
 
             if search:
                 query = query.filter(Pipeline.title.ilike(f"%{search.strip()}%"))
@@ -289,7 +294,7 @@ class PipelineRepository:
                     detail="Pipeline not found",
                 )
 
-            db.delete(pipeline)
+            pipeline.is_active = False
             db.commit()
 
             # ✅ Build folder path

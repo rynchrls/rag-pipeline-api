@@ -15,7 +15,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
         os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30000)
     )
-    MODEL: str = os.getenv("model")
+
+    OLLAMA_HOST: str = os.getenv("OLLAMA_HOST")
+    OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL")
+
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL")
+
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL")
 
 
 settings = Settings()
