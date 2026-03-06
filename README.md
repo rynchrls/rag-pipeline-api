@@ -112,6 +112,14 @@ GEMINI_MODEL=gemini-2.5-flash
 
 > You only need to fill in the API keys for the LLM provider(s) you plan to use.
 
+**⚠️ Important:** After setting your API keys, open `app/v1/repository/message.py` and update the `provider` variable inside the `generate_stream` function to match your chosen LLM:
+
+```python
+# app/v1/repository/message.py
+def generate_stream():
+    provider = "ollama"   # change to "ollama", "openai", or "gemini"
+```
+
 ---
 
 ## Database Setup
