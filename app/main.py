@@ -7,8 +7,16 @@ from app.v1.routers import message
 from app.v1.routers import conversation
 from app.socketio_app import socket_app
 import app.v1.socket.socket_handlers
+from pathlib import Path
+
+
+def ensure_rag_files_dir():
+    rag_files_path = Path(__file__).parent / "rag_files"
+    rag_files_path.mkdir(exist_ok=True)
+
 
 create_tables()
+ensure_rag_files_dir()
 
 app = FastAPI(
     title="Rag Pipeline",
